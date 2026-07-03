@@ -1,64 +1,118 @@
+
 #include <LiquidCrystal_I2C.h>
+
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
-int button=2;
-int buzzer =7;
-bool laststate=HIGH;
-bool currentstate;
-long end_time;
-long start_time;
-void countdown(){
+const int buttonPin = 6;
+const int greenLED = 8;
+const int redLED = 9;
+const int buzzerPin = 10;
+
+unsigned long startTime;
+unsigned long reactionTime;
+bool waitingForClick = false;
+
+void setup() {
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(greenLED, OUTPUT);
+  pinMode(redLED, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  lcd.init();
+  lcd.backlight();
+  randomSeed(analogRead(A0));
+  showStartScreen();
+}
+
+void showStartScreen() {
+  digitalWrite(redLED, LOW);
+  digitalWrite(greenLED, HIGH);
   lcd.clear();
-  for(int i=3;i>0;i--){
-    lcd.setCursor(3,0);
-    lcd.print(i);
-    delay(1000);
+  lcd.setCursor(0, 1);
+  lcd.print("   Press to Start");
+}
+
+void playStartTune() {
+  tone(buzzerPin, 523, 150);
+  delay(200);
+  tone(buzzerPin, 659, 150);
+  delay(200);
+  tone(buzzerPin, 784, 300);
+  delay(350);
+}
+
+void loop() {
+  if (digitalRead(buttonPin) == LOW) {
+    delay(50);
+    while (digitalRead(buttonPin) == LOW);
+
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("    Be Ready...");
+    digitalWrite(greenLED, HIGH);
+
+    playStartTune();
+
+    long randomDelay = random(2000, 6000);
+    unsigned long delayStart = millis();
+    bool falseStart = false;
+
+    while (millis() - delayStart < randomDelay) {
+      if (digitalRead(buttonPin) == LOW) {
+        falseStart = true;
+        break;
+      }
+    }
+
+    if (falseStart) {
+      lcd.clear();
+      lcd.setCursor(0, 1);
+      lcd.print("     Too Soon!");
+      digitalWrite(greenLED, LOW);
+      digitalWrite(redLED, HIGH);
+      tone(buzzerPin, 200, 500);
+
+      delay(300);
+      while (digitalRead(buttonPin) == HIGH);
+      delay(50);
+      while (digitalRead(buttonPin) == LOW);
+
+      digitalWrite(redLED, LOW);
+      showStartScreen();
+      return;
+    }
+
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("      Click!");
+    digitalWrite(greenLED, LOW);
+    digitalWrite(redLED, HIGH);
+    tone(buzzerPin, 1000, 100);
+
+    startTime = millis();
+    waitingForClick = true;
+
+    while (waitingForClick) {
+      if (digitalRead(buttonPin) == LOW) {
+        reactionTime = millis() - startTime;
+        waitingForClick = false;
+      }
+    }
+
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("Time: ");
+    lcd.print(reactionTime);
+    lcd.print(" ms");
+    lcd.setCursor(0, 2);
+    lcd.print("  Press to Start");
+
+    digitalWrite(redLED, LOW);
+
+    delay(300);
+    while (digitalRead(buttonPin) == HIGH);
+    delay(50);
+    while (digitalRead(buttonPin) == LOW);
+
+    showStartScreen();
   }
 }
-
-void show_result(long result){
-  lcd.clear();
-  lcd.setCursor(3,0);
-  lcd.print(result);
-}
-
-
-
-void setup(){
-pinMode(button,INPUT_PULLUP);
-pinMode(buzzer,OUTPUT);
-lcd.init();
-lcd.backlight();
-lcd.clear();
-lcd.setCursor(3,0);
-lcd.print("press to start");
-while(true){
-currentstate=digitalRead(button);
-if(currentstate==LOW && laststate==HIGH){
-  countdown();
-  break;
-}
-}
-lcd.setCursor(3,0);
-lcd.print("go!");
-start_time=millis();
-laststate=HIGH;
-tone(buzzer,500,100);
-}
-
-
-void loop(){
-   
-  currentstate=digitalRead(button);
-    if(laststate==HIGH && currentstate==LOW){
-   end_time=millis();
-   long reaction_time=end_time-start_time;
-
-   show_result(reaction_time);
-   while(1){}
-  }
-  laststate=currentstate;
-  }
-
-
-  
